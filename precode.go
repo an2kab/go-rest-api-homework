@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -40,13 +42,84 @@ var tasks = map[string]Task{
 }
 
 // Ниже напишите обработчики для каждого эндпоинта
-// ...
+
+// Обработчик для всех задач (метод GET) endpoint /tasks
+func allTasks(res http.ResponseWriter, req *http.Request) {
+
+	resp, err := json.Marshal(tasks)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res.Header().Set("Content-type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	res.Write(resp)
+}
+
+// Обработчик для отаправки запросов на сервер (метод Post) endpoint /tasks
+func postTasks(res http.ResponseWriter, req *http.Request) {
+
+	var task Task
+	var buff bytes.Buffer
+
+	_, err := buff.ReadFrom(req.Body)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err = json.Unmarshal(buff.Bytes(), &task); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	tasks[task.ID] = task
+	res.Header().Set("Content-type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+}
+
+// Обработчик для получения задач по ID (метод GET) endpoint /tasks/{id}
+func idTasks(res http.ResponseWriter, req *http.Request) {
+	id := chi.URLParam(req, "id")
+	task, ok := tasks[id]
+	if !ok {
+		http.Error(res, "Задача не найдена", http.StatusNoContent)
+		return
+	}
+
+	resp, err := json.Marshal(task)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res.Header().Set("Content-type", "application/json")
+	res.Write(resp)
+}
+
+// Обработчик удаления задач по ID (метод DELETE) endpoint /tasks/{id}
+func delTasks(res http.ResponseWriter, req *http.Request) {
+	id := chi.URLParam(req, "id")
+	_, ok := tasks[id]
+	if !ok {
+		http.Error(res, "Задача не найдена", http.StatusNoContent)
+		return
+	}
+
+	delete(tasks, id)
+	res.Header().Set("Content-type", "application/json")
+	res.WriteHeader(http.StatusOK)
+}
 
 func main() {
 	r := chi.NewRouter()
 
 	// здесь регистрируйте ваши обработчики
 	// ...
+	r.Get("/tasks", allTasks)
+	r.Post("/tasks", postTasks)
+	r.Get("/tasks/{id}", idTasks)
+	r.Delete("/tasks/{id}", delTasks)
 
 	if err := http.ListenAndServe(":8080", r); err != nil {
 		fmt.Printf("Ошибка при запуске сервера: %s", err.Error())

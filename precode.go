@@ -53,7 +53,7 @@ func allTasks(res http.ResponseWriter, req *http.Request) {
 	}
 	res.Header().Set("Content-type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	res.Write(resp)
+	_, _ = res.Write(resp)
 }
 
 // Обработчик для отаправки запросов на сервер (метод Post) endpoint /tasks
@@ -72,7 +72,11 @@ func postTasks(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
-
+	//  Здесь проверяем начличие задачи
+	if _, exists := tasks[task.ID]; exists {
+		http.Error(res, "Эта задача уже существует", http.StatusBadRequest)
+		return
+	}
 	tasks[task.ID] = task
 	res.Header().Set("Content-type", "application/json")
 	res.WriteHeader(http.StatusCreated)
@@ -83,12 +87,14 @@ func idTasks(res http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 	task, ok := tasks[id]
 	if !ok {
+		//  Здесь проверяем начличие задачи
 		http.Error(res, "Задача не найдена", http.StatusNoContent)
 		return
 	}
 
 	resp, err := json.Marshal(task)
 	if err != nil {
+		// Здесь возвращаем ошибку в соответствии с заданием
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -102,12 +108,14 @@ func delTasks(res http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 	_, ok := tasks[id]
 	if !ok {
+		// Здесь проверяем наличие задачи
 		http.Error(res, "Задача не найдена", http.StatusNoContent)
 		return
 	}
 
 	delete(tasks, id)
 	res.Header().Set("Content-type", "application/json")
+	// Возвращем статус в соответствии с заданием
 	res.WriteHeader(http.StatusOK)
 }
 
